@@ -1,4 +1,4 @@
-# IAM Box
+# iam box
 
 **Single entrypoint for application access rights management**
 
@@ -23,10 +23,11 @@ cd iam-box
 docker-compose up -d
 ```
 
-### 2. Or run binary
+### 2. Or build and run binary
 
 ```bash
-# Download from releases
+cd iam-box/go
+go build -o iam-box main.go
 ./iam-box server --port 8080
 ```
 
@@ -50,14 +51,17 @@ docker-compose up -d
 # Revoke permission
 ./iam-box revoke alice delete invoice 123
 
-# View audit log
-./iam-box audit alice
+# List all permissions with pagination
+./iam-box list
 
 # List user permissions
-./iam-box list alice
+./iam-box list-user alice
+
+# [not implemented] View audit log
+./iam-box audit alice
 ```
 
-### Interactive Mode
+### [not implemented] Interactive Mode
 
 ```bash
 ./iam-box
@@ -74,7 +78,7 @@ iam> exit
 |--------|------|-------------|
 | POST | `/api/v1/permissions/grant` | Grant permission |
 | POST | `/api/v1/permissions/can` | Check permission |
-| DELETE | `/api/v1/permissions/` | Revoke permission |
+| DELETE | `/api/v1/permissions/revoke` | Revoke permission |
 | GET | `/api/v1/permissions/{user_id}` | List user permissions |
 | GET | `/api/v1/decisions/` | List audit log |
 | GET | `/_core/health` | Health check |
@@ -92,7 +96,7 @@ iam> exit
 --port        API port (default: 8080)
 ```
 
-### Environment Variables
+### [not implemented] Environment Variables
 
 ```bash
 export IAM_DB_HOST=postgres.example.com
@@ -151,17 +155,11 @@ curl -X POST http://localhost:8080/api/v1/permissions/can \
 ```bash
 # Grant permission for ALL invoices
 ./iam-box grant alice delete invoice NULL
+# or
+./iam-box grant alice delete invoice
 
 # Check specific invoice (returns true)
 ./iam-box check alice delete invoice 123
-```
-
-## Build from Source
-
-```bash
-git clone https://github.com/yourname/iam-box
-cd iam-box
-go build -o iam-box .
 ```
 
 ## Tech Stack

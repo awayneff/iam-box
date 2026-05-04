@@ -13,7 +13,7 @@ import (
 type PermissionSvc struct {
 	ID           uint
 	UserID       string
-	Action       entities.Action
+	Action       string
 	ResourceType string
 	ResourceID   *string
 	GrantedAt    time.Time
@@ -35,18 +35,13 @@ func NewPermissionService(
 	}
 }
 
-func (s *PermissionService) Create(
+func (s *PermissionService) Grant(
 	ctx context.Context,
 	userID, action, resourceType string,
 	resourceID *string,
 ) error {
-	a := entities.Action(action)
-	if !a.Valid() {
-		return fmt.Errorf("invalid action type: %s", action)
-	}
-
 	// 1. Check if a wildcard already exists
-	wildcardExists, err := s.permissionRepository.Check(ctx, userID, resourceType, a, nil)
+	wildcardExists, err := s.permissionRepository.Check(ctx, &userID, &action, &resourceType, nil)
 	if err != nil {
 		return err
 	}
@@ -58,7 +53,7 @@ func (s *PermissionService) Create(
 	}
 
 	// 2. Check if specific permission already exists
-	specificExists, err := s.permissionRepository.Check(ctx, userID, resourceType, a, resourceID)
+	specificExists, err := s.permissionRepository.Check(ctx, &userID, &action, &resourceType, resourceID)
 	if err != nil {
 		return err
 	}
@@ -70,15 +65,37 @@ func (s *PermissionService) Create(
 
 	return s.permissionRepository.Create(ctx, &entities.Permission{
 		UserID:       userID,
-		Action:       a,
+		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		GrantedAt:    time.Now(),
 	})
 }
 
-func (s *PermissionService) GetByUser(ctx context.Context, userID string) (*[]PermissionSvc, error) {
-	permissions, err := s.permissionRepository.GetByUser(ctx, userID)
+func (s *PermissionService) List(ctx context.Context, limit, offset int) (*[]PermissionSvc, error) {
+	permissions, err := s.permissionRepository.List(ctx, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	permissionsSvc := make([]PermissionSvc, len(permissions))
+	for i, p := range permissions {
+		permissionsSvc[i] = PermissionSvc{
+			ID:           p.ID,
+			UserID:       p.UserID,
+			Action:       p.Action,
+			ResourceType: p.ResourceType,
+			ResourceID:   p.ResourceID,
+			GrantedAt:    p.GrantedAt,
+			CreatedBy:    p.CreatedBy,
+		}
+	}
+
+	return &permissionsSvc, nil
+}
+
+func (s *PermissionService) GetByUser(ctx context.Context, userID string, limit, offset int) (*[]PermissionSvc, error) {
+	permissions, err := s.permissionRepository.GetByUser(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +117,7 @@ func (s *PermissionService) GetByUser(ctx context.Context, userID string) (*[]Pe
 }
 
 func (s *PermissionService) Check(ctx context.Context, userID, action, resourceType string, resourceID *string) (bool, error) {
-	a := entities.Action(action)
-	if !a.Valid() {
-		return false, fmt.Errorf("invalid action type: %s", action)
-	}
-
-	allowed, err := s.permissionRepository.Check(ctx, userID, resourceType, a, resourceID)
+	allowed, err := s.permissionRepository.Check(ctx, &userID, &action, &resourceType, resourceID)
 	if err != nil {
 		return false, err
 	}
@@ -120,14 +132,9 @@ func (s *PermissionService) Check(ctx context.Context, userID, action, resourceT
 	})
 }
 
-func (s *PermissionService) Delete(ctx context.Context, userID, action, resourceType string, resourceID *string) error {
-	a := entities.Action(action)
-	if !a.Valid() {
-		return fmt.Errorf("invalid action type: %s", action)
-	}
-
+func (s *PermissionService) Revoke(ctx context.Context, userID, action, resourceType string, resourceID *string) error {
 	// Find the exact permission
-	perm, err := s.permissionRepository.Find(ctx, userID, a, resourceType, resourceID)
+	perm, err := s.permissionRepository.Find(ctx, userID, action, resourceType, resourceID)
 	if err != nil {
 		return err
 	}

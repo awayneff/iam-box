@@ -24,7 +24,7 @@ func (r *PermissionRepository) Create(ctx context.Context, p *entities.Permissio
 }
 
 // Repository layer — returns the permission, not just bool
-func (r *PermissionRepository) Find(ctx context.Context, userID string, action entities.Action, resourceType string, resourceID *string) (*entities.Permission, error) {
+func (r *PermissionRepository) Find(ctx context.Context, userID, action, resourceType string, resourceID *string) (*entities.Permission, error) {
 	var perm entities.Permission
 
 	query := r.db.WithContext(ctx).
@@ -47,7 +47,11 @@ func (r *PermissionRepository) Find(ctx context.Context, userID string, action e
 // List - paginated permissions
 func (r *PermissionRepository) List(ctx context.Context, limit, offset int) ([]entities.Permission, error) {
 	var perms []entities.Permission
-	err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("granted_at DESC").Find(&perms).Error
+	err := r.db.WithContext(ctx).
+		Limit(limit).
+		Offset(offset).
+		Order("granted_at DESC").
+		Find(&perms).Error
 	return perms, err
 }
 
@@ -62,9 +66,14 @@ func (r *PermissionRepository) GetByID(ctx context.Context, id uint) (*entities.
 }
 
 // GetByUser - find all permissions for a user
-func (r *PermissionRepository) GetByUser(ctx context.Context, userID string) ([]entities.Permission, error) {
+func (r *PermissionRepository) GetByUser(ctx context.Context, userID string, limit, offset int) ([]entities.Permission, error) {
 	var perms []entities.Permission
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&perms).Error
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Limit(limit).
+		Offset(offset).
+		Order("granted_at DESC").
+		Find(&perms).Error
 	return perms, err
 }
 
@@ -73,7 +82,7 @@ func (r *PermissionRepository) GetByUser(ctx context.Context, userID string) ([]
 // and also logs it as a decision
 // this one is also potentially heavy loaded
 // and should take advantage of the caching (Redis)
-func (r *PermissionRepository) Check(ctx context.Context, userID, resourceType string, action entities.Action, resourceID *string) (bool, error) {
+func (r *PermissionRepository) Check(ctx context.Context, userID, action, resourceType, resourceID *string) (bool, error) {
 	var count int64
 
 	query := r.db.WithContext(ctx).Model(&entities.Permission{}).

@@ -8,6 +8,7 @@ import (
 	"iam-box/app/api"
 	"iam-box/app/dto/http/requests"
 	"iam-box/app/dto/http/responses"
+	errs "iam-box/app/errors"
 	"iam-box/app/service"
 	"net/http"
 	"time"
@@ -30,7 +31,7 @@ func NewPermissionController(permissionService service.PermissionService) *permi
 	}
 }
 
-func (c *permissionController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *permissionController) Grant(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		api.RespondWithBadMethod(w, map[string]string{"message": "Expected method POST"})
 		return
@@ -50,7 +51,7 @@ func (c *permissionController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.permissionService.Create(ctx, req.UserID, req.Action, req.ResourceType, req.ResourceID); err != nil {
+	if err := c.permissionService.Grant(ctx, req.UserID, req.Action, req.ResourceType, req.ResourceID); err != nil {
 		api.RespondWithInternalError(w, err)
 		return
 	}
@@ -67,9 +68,17 @@ func (c *permissionController) GetByUser(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	user_id := chi.URLParam(r, "user_id")
+	userID := chi.URLParam(r, "user_id")
 
-	permissions, err := c.permissionService.GetByUser(ctx, user_id)
+	limit := api.ParseIntQuery(r, "limit", 100)
+	offset := api.ParseIntQuery(r, "offset", 0)
+
+	if limit > 1000 {
+		api.RespondWithError(w, http.StatusBadRequest, errs.ErrLimitViolation.Error())
+		return
+	}
+
+	permissions, err := c.permissionService.GetByUser(ctx, userID, limit, offset)
 	if err != nil {
 		api.RespondWithInternalError(w, err)
 		return
@@ -133,7 +142,7 @@ func (c *permissionController) Check(w http.ResponseWriter, r *http.Request) {
 	api.RespondWithJSON(w, http.StatusForbidden, map[string]string{"message": "access rejected"})
 }
 
-func (c *permissionController) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *permissionController) Revoke(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		api.RespondWithBadMethod(w, map[string]string{"message": "Expected method DELETE"})
 		return
@@ -153,7 +162,7 @@ func (c *permissionController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.permissionService.Delete(ctx, req.UserID, req.Action, req.ResourceType, req.ResourceID); err != nil {
+	if err := c.permissionService.Revoke(ctx, req.UserID, req.Action, req.ResourceType, req.ResourceID); err != nil {
 		api.RespondWithInternalError(w, err)
 		return
 	}

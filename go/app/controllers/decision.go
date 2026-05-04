@@ -6,6 +6,7 @@ import (
 	"context"
 	"iam-box/app/api"
 	"iam-box/app/dto/http/responses"
+	errs "iam-box/app/errors"
 	"iam-box/app/service"
 	"net/http"
 	"time"
@@ -36,7 +37,15 @@ func (c *decisionController) List(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	decisions, err := c.decisionService.List(ctx, 1000, 0)
+	limit := api.ParseIntQuery(r, "limit", 100)
+	offset := api.ParseIntQuery(r, "offset", 0)
+
+	if limit > 1000 {
+		api.RespondWithError(w, http.StatusBadRequest, errs.ErrLimitViolation.Error())
+		return
+	}
+
+	decisions, err := c.decisionService.List(ctx, limit, offset)
 	if err != nil {
 		api.RespondWithInternalError(w, err)
 		return

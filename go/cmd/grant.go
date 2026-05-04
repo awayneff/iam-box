@@ -1,3 +1,5 @@
+// cmd/grant.go
+
 package cmd
 
 import (
@@ -13,7 +15,7 @@ import (
 var grantCmd = &cobra.Command{
 	Use:   "grant [user_id] [action] [resource_type] [resource_id]",
 	Short: "Grant a permission",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.RangeArgs(3, 4),
 	Run: func(cmd *cobra.Command, args []string) {
 		db := initDB()
 		permissionRepo := repository.NewPermissionRepository(db)
@@ -23,15 +25,26 @@ var grantCmd = &cobra.Command{
 		userID := args[0]
 		action := args[1]
 		resourceType := args[2]
-		resourceID := args[3]
 
-		err := permissionService.Create(context.Background(), userID, action, resourceType, &resourceID)
+		// accept wildcard
+		var resourceID *string
+		if len(args) == 4 && args[3] != "" && args[3] != "null" {
+			resourceID = &args[3]
+		}
+
+		err := permissionService.Grant(context.Background(), userID, action, resourceType, resourceID)
 		if err != nil {
 			fmt.Printf("❌ Failed: %v\n", err)
 			return
 		}
 
-		fmt.Printf("✅ Granted %s %s on %s/%s\n", userID, action, resourceType, resourceID)
+		if resourceID != nil {
+			fmt.Printf("✅ Granted %s %s on %s/%s\n", userID, action, resourceType, *resourceID)
+			return
+		}
+
+		// wildcard display
+		fmt.Printf("✅ Granted %s %s on %s/*\n", userID, action, resourceType)
 	},
 }
 

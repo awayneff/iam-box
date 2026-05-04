@@ -25,9 +25,6 @@ yarn-error.log*
 
 *.xlsx
 
-backend/Dockerfile
-backend/docker-compose.yml
-
 .env
 .env.prod
 
