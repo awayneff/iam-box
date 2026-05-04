@@ -172,4 +172,4 @@ curl -X POST http://localhost:8080/api/v1/permissions/can \
 
 ## Note
 
-This project is on early stage of development
+This project is in early stage of development
